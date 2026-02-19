@@ -6,6 +6,7 @@ import { addOrder } from '@/app/actions';
 export default function OrderForm() {
     const [isOpen, setIsOpen] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [isParsing, setIsParsing] = useState(false); // Состояние для лоадера ИИ
     const formRef = useRef<HTMLFormElement>(null);
 
     if (!isOpen) {
@@ -19,12 +20,50 @@ export default function OrderForm() {
         );
     }
 
+    // --- МАГИЯ ИИ: Функция, которая срабатывает при выборе файла ---
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setIsParsing(true);
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            // Отправляем файл на наш скрытый API
+            const res = await fetch('/api/parse-pdf', {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (!res.ok) throw new Error('Ошибка распознавания');
+
+            const data = await res.json();
+
+            // Автоматически заполняем поля формы (если ИИ их нашел)
+            if (formRef.current) {
+                const form = formRef.current;
+                if (data.orderNumber) (form.elements.namedItem('orderNumber') as HTMLInputElement).value = data.orderNumber;
+                if (data.orderDate) (form.elements.namedItem('orderDate') as HTMLInputElement).value = data.orderDate;
+                if (data.type) (form.elements.namedItem('type') as HTMLSelectElement).value = data.type;
+                if (data.employeeName) (form.elements.namedItem('employeeName') as HTMLInputElement).value = data.employeeName;
+                if (data.description) (form.elements.namedItem('description') as HTMLInputElement).value = data.description;
+                if (data.basis) (form.elements.namedItem('basis') as HTMLInputElement).value = data.basis;
+            }
+        } catch (error) {
+            console.error(error);
+            alert('ИИ не смог прочитать этот скан. Пожалуйста, заполните поля вручную.');
+        } finally {
+            setIsParsing(false);
+        }
+    };
+
     const handleSubmit = async (formData: FormData) => {
         setLoading(true);
         try {
             await addOrder(formData);
             formRef.current?.reset();
-            setIsOpen(false); // Закрываем форму при успехе
+            setIsOpen(false);
         } catch (e) {
             alert('Произошла ошибка при загрузке. Проверьте консоль.');
             console.error(e);
@@ -33,7 +72,6 @@ export default function OrderForm() {
         }
     };
 
-    // Вынесли стили в переменную: задаем белый фон, темно-серый текст и синюю рамку при фокусе
     const inputStyles = "w-full border border-gray-300 p-2.5 rounded-lg bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent";
 
     return (
@@ -44,19 +82,34 @@ export default function OrderForm() {
             </div>
 
             <form ref={formRef} action={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                {/* Поле файла подняли наверх, чтобы с него начиналась магия */}
+                <div className="md:col-span-2 mb-2 p-4 bg-blue-50/50 border border-blue-100 rounded-lg">
+                    <label className="block text-sm font-medium text-blue-900 mb-2">1. Загрузите отсканированный PDF-файл *</label>
+                    <input
+                        name="pdfFile"
+                        type="file"
+                        accept="application/pdf"
+                        required
+                        onChange={handleFileChange} // <--- Прицепили обработчик
+                        className="w-full text-gray-900 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                    />
+                    {isParsing && <div className="mt-3 text-sm text-blue-600 font-medium flex items-center">✨ Нейросеть читает документ...</div>}
+                </div>
+
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Номер приказа *</label>
-                    <input name="orderNumber" type="text" required placeholder="Например: 45-К" className={inputStyles} />
+                    <input name="orderNumber" type="text" required placeholder="Например: 45-К" className={inputStyles} disabled={isParsing} />
                 </div>
 
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Дата подписания *</label>
-                    <input name="orderDate" type="date" required className={inputStyles} />
+                    <input name="orderDate" type="date" required className={inputStyles} disabled={isParsing} />
                 </div>
 
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Тип приказа *</label>
-                    <select name="type" className={inputStyles}>
+                    <select name="type" className={inputStyles} disabled={isParsing}>
                         <option value="Отпуск">Отпуск</option>
                         <option value="Прием на работу">Прием на работу</option>
                         <option value="Увольнение">Увольнение</option>
@@ -67,26 +120,23 @@ export default function OrderForm() {
 
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">ФИО сотрудника</label>
-                    <input name="employeeName" type="text" placeholder="Иванов И.И." className={inputStyles} />
+                    <input name="employeeName" type="text" placeholder="Иванов И.И." className={inputStyles} disabled={isParsing} />
                 </div>
 
                 <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Краткое содержание</label>
-                    <input name="description" type="text" placeholder="О предоставлении ежегодного отпуска..." className={inputStyles} />
+                    <input name="description" type="text" placeholder="О предоставлении ежегодного отпуска..." className={inputStyles} disabled={isParsing} />
                 </div>
+
                 <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Основание</label>
-                    <input name="basis" type="text" placeholder="Например: Личное заявление, Служебная записка..." className={inputStyles} />
-                </div>
-                <div className="md:col-span-2 mt-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Файл приказа (только PDF) *</label>
-                    <input name="pdfFile" type="file" accept="application/pdf" required className="w-full border border-gray-300 p-2 rounded-lg bg-white text-gray-900 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    <input name="basis" type="text" placeholder="Например: Личное заявление..." className={inputStyles} disabled={isParsing} />
                 </div>
 
                 <div className="md:col-span-2 flex justify-end gap-3 mt-4 pt-4 border-t border-gray-100">
                     <button type="button" onClick={() => setIsOpen(false)} className="px-5 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg transition font-medium">Отмена</button>
-                    <button type="submit" disabled={loading} className="bg-blue-600 text-white px-6 py-2.5 rounded-lg hover:bg-blue-700 transition font-medium disabled:bg-blue-300 flex items-center">
-                        {loading ? 'Загрузка...' : 'Сохранить в архив'}
+                    <button type="submit" disabled={loading || isParsing} className="bg-blue-600 text-white px-6 py-2.5 rounded-lg hover:bg-blue-700 transition font-medium disabled:bg-blue-300 flex items-center">
+                        {loading ? 'Сохранение...' : 'Сохранить в архив'}
                     </button>
                 </div>
             </form>
