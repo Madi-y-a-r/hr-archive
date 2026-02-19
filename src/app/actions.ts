@@ -3,6 +3,8 @@
 import { createClient } from '@supabase/supabase-js'
 import prisma from '../../lib/prisma'
 import { revalidatePath } from 'next/cache'
+import { redirect } from 'next/navigation'
+import { cookies } from 'next/headers'
 
 // Подключаемся к Supabase с админскими правами для загрузки файла
 const supabase = createClient(
@@ -15,6 +17,7 @@ export async function addOrder(formData: FormData) {
     const orderNumber = formData.get('orderNumber') as string;
     const orderDate = formData.get('orderDate') as string;
     const type = formData.get('type') as string;
+    const subType = formData.get('subType') as string;
     const employeeName = formData.get('employeeName') as string;
     const description = formData.get('description') as string;
     const basis = formData.get('basis') as string;
@@ -40,6 +43,7 @@ export async function addOrder(formData: FormData) {
         orderNumber,
         orderDate: new Date(orderDate),
         type,
+        subType,
         employeeName,
         description,
         basis, // <--- Сохраняем в БД
@@ -68,6 +72,7 @@ export async function deleteOrder(id: string, pdfUrl: string) {
     const orderNumber = formData.get('orderNumber') as string;
     const orderDate = formData.get('orderDate') as string;
     const type = formData.get('type') as string;
+    const subType = formData.get('subType') as string;
     const employeeName = formData.get('employeeName') as string;
     const description = formData.get('description') as string;
     const basis = formData.get('basis') as string;
@@ -78,4 +83,29 @@ export async function deleteOrder(id: string, pdfUrl: string) {
       data: { orderNumber, orderDate: new Date(orderDate), type, employeeName, description, basis }
     });
     revalidatePath('/');
+  }
+
+  export async function login(formData: FormData) {
+    const password = formData.get('password');
+    // В идеале пароль хранится в .env файле, но для старта зададим жесткий пароль
+    const correctPassword = process.env.HR_PASSWORD || 'az2026';
+  
+    if (password === correctPassword) {
+      const cookieStore = await cookies();
+      cookieStore.set('hr-auth-token', 'authenticated', {
+        httpOnly: true, // Защита от кражи куки через расширения браузера
+        secure: process.env.NODE_ENV === 'production', 
+        maxAge: 60 * 60 * 24 * 7, // Пропуск действует 7 дней, чтобы кадровикам не вводить пароль каждый день
+        path: '/',
+      });
+      redirect('/'); // Если пароль верный, пускаем на главную
+    } else {
+      throw new Error('Неверный пароль');
+    }
+  }
+  
+  export async function logout() {
+    const cookieStore = await cookies();
+    cookieStore.delete('hr-auth-token'); // Забираем пропуск
+    redirect('/login'); // Выкидываем на страницу входа
   }
