@@ -49,3 +49,33 @@ export async function addOrder(formData: FormData) {
   
     revalidatePath('/');
   }
+
+  // --- ФУНКЦИЯ УДАЛЕНИЯ ---
+export async function deleteOrder(id: string, pdfUrl: string) {
+    // 1. Вытаскиваем имя файла из ссылки
+    const fileName = pdfUrl.split('/').pop();
+    if (fileName) {
+      // 2. Удаляем сам PDF из хранилища Supabase
+      await supabase.storage.from('orders').remove([fileName]);
+    }
+    // 3. Удаляем запись из базы данных
+    await prisma.order.delete({ where: { id } });
+    revalidatePath('/'); // Обновляем страницу
+  }
+  
+  // --- ФУНКЦИЯ РЕДАКТИРОВАНИЯ ---
+  export async function updateOrder(id: string, formData: FormData) {
+    const orderNumber = formData.get('orderNumber') as string;
+    const orderDate = formData.get('orderDate') as string;
+    const type = formData.get('type') as string;
+    const employeeName = formData.get('employeeName') as string;
+    const description = formData.get('description') as string;
+    const basis = formData.get('basis') as string;
+  
+    // Обновляем данные в базе (сам PDF-файл остается старым)
+    await prisma.order.update({
+      where: { id },
+      data: { orderNumber, orderDate: new Date(orderDate), type, employeeName, description, basis }
+    });
+    revalidatePath('/');
+  }

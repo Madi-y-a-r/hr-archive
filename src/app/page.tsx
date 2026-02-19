@@ -1,6 +1,7 @@
 import prisma from "../../lib/prisma";
 import OrderForm from "@/components/OrderForm";
 import Search from "@/components/Search";
+import OrderRow from "@/components/OrderRow";
 
 export default async function Home({
   searchParams,
@@ -40,12 +41,12 @@ export default async function Home({
         {/* Таблица результатов */}
         <div className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100">
           <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
-                <th className="py-4 px-6 font-semibold">№ и Дата</th>
-                <th className="py-4 px-6 font-semibold">Тип приказа</th>
-                <th className="py-4 px-6 font-semibold">Сотрудник / Содержание</th>
-                <th className="py-4 px-6 font-semibold text-center">Действия</th>
+            <thead className="hidden md:table-header-group bg-gray-50 text-gray-500 uppercase text-xs tracking-wider font-medium border-b border-gray-100">
+              <tr>
+                <th className="py-4 px-6">№ и Дата</th>
+                <th className="py-4 px-6">Тип приказа</th>
+                <th className="py-4 px-6">Сотрудник / Содержание</th>
+                <th className="py-4 px-6 text-right">Действия</th>
               </tr>
             </thead>
             <tbody className="text-gray-700 text-sm">
@@ -57,31 +58,7 @@ export default async function Home({
                 </tr>
               ) : (
                 orders.map((order) => (
-                  <tr key={order.id} className="border-t border-gray-100 hover:bg-blue-50/50 transition">
-                    <td className="py-4 px-6 font-medium">
-                      № {order.orderNumber}<br />
-                      <span className="text-xs text-gray-400">{order.orderDate.toLocaleDateString('ru-RU')}</span>
-                    </td>
-                    <td className="py-4 px-6">
-                      <span className="bg-blue-100 text-blue-800 text-xs px-2.5 py-1 rounded-full font-medium">
-                        {order.type}
-                      </span>
-                    </td>
-                    <td className="py-4 px-6 font-semibold">
-                      {order.employeeName || '—'}<br />
-                      <span className="font-normal text-xs text-gray-500">{order.description}</span>
-                      {order.basis && (
-                        <div className="text-xs text-gray-400 mt-1 italic">
-                          Основание: {order.basis}
-                        </div>
-                      )}
-                    </td>
-                    <td className="py-4 px-6 text-center">
-                      <a href={order.pdfUrl} target="_blank" className="text-blue-600 hover:text-blue-800 font-medium mr-4">
-                        Открыть PDF
-                      </a>
-                    </td>
-                  </tr>
+                  <OrderRow key={order.id} order={order} />
                 ))
               )}
             </tbody>

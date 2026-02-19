@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
     });
 
     // 3. Подключаем модель (flash отлично и быстро справляется с документами)
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
     // Промпт для извлечения данных
     const prompt = `Ты HR-ассистент в ТОО «Астана-Зеленстрой». Прочитай этот отсканированный приказ и извлеки из него данные строго в формате JSON.
