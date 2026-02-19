@@ -1,0 +1,28 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// Таблица Приказов
+model Order {
+  id             String   @id @default(uuid())
+  orderNumber    String   
+  orderDate      DateTime 
+  type           String   
+  
+  employeeName   String?  
+  description    String?  
+  basis          String?  
+  
+  pdfUrl         String   
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("orders") 
+}

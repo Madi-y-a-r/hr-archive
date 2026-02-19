@@ -1,65 +1,94 @@
-import Image from "next/image";
+import prisma from "../../lib/prisma";
+import OrderForm from "@/components/OrderForm";
+import Search from "@/components/Search";
 
-export default function Home() {
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>; // <-- Указали, что это Promise (Требование Next.js 15)
+}) {
+  // Распаковываем параметры поиска
+  const resolvedParams = await searchParams;
+  const query = resolvedParams?.q || '';
+
+  // Просим Prisma найти приказы
+  const orders = await prisma.order.findMany({
+    where: query ? {
+      OR: [
+        { orderNumber: { contains: query, mode: 'insensitive' } },
+        { type: { contains: query, mode: 'insensitive' } },
+        { employeeName: { contains: query, mode: 'insensitive' } },
+        { description: { contains: query, mode: 'insensitive' } },
+        { basis: { contains: query, mode: 'insensitive' } },
+      ]
+    } : {},
+    orderBy: { createdAt: 'desc' }
+  });
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="min-h-screen bg-gray-50 p-8 font-sans">
+      <div className="max-w-6xl mx-auto">
+
+        {/* Шапка */}
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold text-gray-800">Электронный архив приказов</h1>
+          <OrderForm />
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+
+        {/* Наш новый рабочий компонент поиска */}
+        <Search />
+
+        {/* Таблица результатов */}
+        <div className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+                <th className="py-4 px-6 font-semibold">№ и Дата</th>
+                <th className="py-4 px-6 font-semibold">Тип приказа</th>
+                <th className="py-4 px-6 font-semibold">Сотрудник / Содержание</th>
+                <th className="py-4 px-6 font-semibold text-center">Действия</th>
+              </tr>
+            </thead>
+            <tbody className="text-gray-700 text-sm">
+              {orders.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="py-8 text-center text-gray-500">
+                    {query ? 'По вашему запросу ничего не найдено.' : 'База приказов пока пуста. Загрузите первый документ!'}
+                  </td>
+                </tr>
+              ) : (
+                orders.map((order) => (
+                  <tr key={order.id} className="border-t border-gray-100 hover:bg-blue-50/50 transition">
+                    <td className="py-4 px-6 font-medium">
+                      № {order.orderNumber}<br />
+                      <span className="text-xs text-gray-400">{order.orderDate.toLocaleDateString('ru-RU')}</span>
+                    </td>
+                    <td className="py-4 px-6">
+                      <span className="bg-blue-100 text-blue-800 text-xs px-2.5 py-1 rounded-full font-medium">
+                        {order.type}
+                      </span>
+                    </td>
+                    <td className="py-4 px-6 font-semibold">
+                      {order.employeeName || '—'}<br />
+                      <span className="font-normal text-xs text-gray-500">{order.description}</span>
+                      {order.basis && (
+                        <div className="text-xs text-gray-400 mt-1 italic">
+                          Основание: {order.basis}
+                        </div>
+                      )}
+                    </td>
+                    <td className="py-4 px-6 text-center">
+                      <a href={order.pdfUrl} target="_blank" className="text-blue-600 hover:text-blue-800 font-medium mr-4">
+                        Открыть PDF
+                      </a>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
-      </main>
+
+      </div>
     </div>
   );
 }
